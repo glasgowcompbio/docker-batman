@@ -1,0 +1,26 @@
+##TITLE= Parameter file, TOPSPIN		Version 3.2
+##JCAMPDX= 5.0
+##DATATYPE= Parameter Values
+##NPOINTS= 1	$$ modification sequence number
+##ORIGIN= Bruker BioSpin GmbH
+##OWNER= naomi
+$$ 2013-11-26 06:27:16.020 +0000  naomi@bionmr600
+$$ /opt/nmrdata/data/naomi/nmr/mixed_bloods.ID_F1_red_1.fS.131125/11/scon2
+$$ process /opt/topspin3.2/prog/mod/go
+##$BLKTR= (0..19)
+3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3
+##$DE1= 4.5
+##$DEADC= 0.5
+##$DEPA= 4.5
+##$DERX= 1.5
+##$FILCOR= 0.393
+##$GRADCHAN= 0
+##$GRADPRE= (0..1)
+10 10
+##$HD_BLKTR= (0..19)
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+##$HD_DE1= 5
+##$HD_DEADC= 1
+##$HD_DEPA= 3
+##$HD_DERX= 3
+##END=
