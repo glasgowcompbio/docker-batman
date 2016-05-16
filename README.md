@@ -7,17 +7,17 @@ This docker container provides BATMAN [1] running on top of Ubuntu 14.04 and R-S
 
 To run BATMAN in this container:
 
-$ docker run --name batman -dp 8787:8787 joewandy/batman
+    $ docker run --name batman -dp 8787:8787 joewandy/batman
 
 Here, we pull this container (joewandy/batman) from the hub, assign the name 'batman' to the running container and map port 8787 from the container to the host.
 
 Next, find out the IP address assigned to your virtual machine
 
-$ docker-machine ip default
+    $ docker-machine ip default
 
 Use that IP to run R-Studio from the browser, e.g. http://192.168.99.100:8787. Login using user rstudio, password rstudio.
 An example script runBatman.R is provided inside /home/rstudio/example. Open that script and run it to test BATMAN on some serum data.
 
 To access the shell once the batman container is running
 
-$ docker exec -it batman /bin/bash
+    $ docker exec -it batman /bin/bash
