@@ -3,10 +3,13 @@ library(batman)
 # set to the directory containing this script
 setwd('/home/rstudio/example')
 
-# Uncomment each line below to run them for the different spectra.
-# Configure the parameters of Batman from the batmanOptions.txt file inside each input directory
+# Configure the parameters of Batman from the batmanOptions.txt file inside
+# the runBATMAN/BatmanInput directory
 
-bm <- batman(BrukerDataDir='11', figBatmanFit=FALSE)
+# Multiple spectra data
+bm <- batman(BrukerDataDir='brucker_input', figBatmanFit=FALSE)
+
+# Plot spectral fit and inferred relative concentration
 plotBatmanFit(bm, showPlot=FALSE)
 plotRelCon(bm, showPlot=FALSE)
 plotMetaFit(bm, showPlot=FALSE)

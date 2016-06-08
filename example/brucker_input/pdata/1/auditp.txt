@@ -1,0 +1,32 @@
+##TITLE= Audit trail, TOPSPIN		Version 3.2
+##JCAMPDX= 5.01
+##ORIGIN= Bruker BioSpin GmbH
+##OWNER= naomi
+$$ /opt/nmrdata/data/naomi/nmr/mixed_bloods.ID_F1_red_1.fS.131125/11/pdata/1/auditp.txt
+##AUDIT TRAIL=  $$ (NUMBER, WHEN, WHO, WHERE, PROCESS, VERSION, WHAT)
+(   1,<2013-11-26 06:28:36.236 +0000>,<naomi>,<bionmr600>,<go>,<TOPSPIN 3.2>,
+      <created by zg
+	started at 2013-11-26 06:27:16.045 +0000,
+	POWCHK enabled, PULCHK disabled,
+       configuration hash MD5:
+       97 86 07 04 A9 AB BD 2C C8 24 32 1D 8D 49 B2 2F
+       data hash MD5: 80K
+       49 38 27 7D 87 41 9B 14 6C D0 A7 C3 5C 2E 43 B5>)
+(   2,<2013-11-26 06:28:36.651 +0000>,<naomi>,<bionmr600>,<audit>,<TOPSPIN 3.2>,
+      <user comment:
+       ICON-NMR User ID: naomi
+       data hash MD5: 80K
+       49 38 27 7D 87 41 9B 14 6C D0 A7 C3 5C 2E 43 B5>)
+(   3,<2013-11-26 06:28:37.154 +0000>,<naomi>,<bionmr600>,<proc1d>,<TOPSPIN 3.2>,
+      <Start of raw data processing
+       efp LB = 1 FT_mod = 6 PKNL = 1 PHC0 = 0 PHC1 = 0 SI = 128K 
+       data hash MD5: 128K
+       23 93 F3 28 B3 93 B6 C4 87 E6 DE D8 94 4E 73 46>)
+(   4,<2013-11-26 06:28:37.540 +0000>,<naomi>,<bionmr600>,<proc1d>,<TOPSPIN 3.2>,
+      <pk PHC0 = 43.43994 PHC1 = 0 
+       data hash MD5: 128K
+       58 A5 8F F5 57 0B 2B 32 BA 01 3D 7C D8 89 1D 0A>)
+##END=
+
+$$ hash MD5
+$$ EB C8 C2 A3 3C 7C F4 A5 E0 8E 43 C4 24 1A 5D 37

@@ -14,6 +14,9 @@ RUN curl https://s3.amazonaws.com/rstudio-server/current.ver | \
       && rm rstudio.deb \
       && apt-get clean
 
+# to make top work from the terminal
+ENV TERM dumb
+
 # install batman & other R packages here
 ADD installBatman.R /home/root/installBatman.R
 RUN /usr/bin/Rscript /home/root/installBatman.R

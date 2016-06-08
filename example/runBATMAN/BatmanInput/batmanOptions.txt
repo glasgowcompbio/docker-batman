@@ -8,17 +8,19 @@
 %% ppm ranges for analysis: Please put each ppm range in a pair of parentheses in the same line,
 %% separate start and end ppm values with a comma, and
 %% separate each set of ppm range with space, e.g. (-0.05,0.05) (1.44,1.52)
-%% ppmRange - ppm ranges for analysis: (3.505,3.62)
-ppmRange - ppm ranges for analysis: (0.9,1.5) (3.5,4.2) (6.8,7.4)
-specNo - Ranges of spectra number to be included (e.g. 1,3-4 etc.): 1
-paraProc - No of parallel processes (multicores) (only 1 core will be used for single spectrum): 3
+%% ppmRange - ppm ranges for analysis: (-0.05,0.05) (3.505,3.62)
+ppmRange - ppm ranges for analysis: (-0.05,0.05) (0.9,1.5) (3.5,4.2) (6.8,7.4)
+specNo - Ranges of spectra number to be included (e.g. 1,3-4 etc.): 1,2
+paraProc - No of parallel processes (multicores) (only 1 core will be used for single spectrum): 1
 negThresh - Truncation threshold for negative intensities: -0.5
 scaleFac - Intensity scale factor: 900000
 downSamp - Down sampling factor: 3
 hiresFlag - Save metabolite fit at resolution of original spectrum? (Yes - 1 / No - 0): 1
 randSeed  - Random number seed: 25
-nItBurnin - Number of burn-in iterations: 7000
-nItPostBurnin - Number of post-burn-in iterations: 1000
+nItBurnin - Number of burn-in iterations: 20000
+nItPostBurnin - Number of post-burn-in iterations: 5000
+%% nItBurnin - Number of burn-in iterations: 1000
+%% nItPostBurnin - Number of post-burn-in iterations: 1000
 multFile - Choose template of multiplets file from options below: 2
 %% 1, The default template of multiplets in multi_data.csv file,
 %% 2, The user input template of multiplets in multi_data_user.csv file,
