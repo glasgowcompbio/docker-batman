@@ -18,3 +18,5 @@ Using that IP, run R-Studio from the browser, e.g. http://192.168.99.100:8787. L
 To access the shell once the batman container is running
 
     $ docker exec -it batman /bin/bash
+
+[![](https://images.microbadger.com/badges/image/joewandy/docker-batman.svg)](https://microbadger.com/images/joewandy/docker-batman "Get your own image badge on microbadger.com")
