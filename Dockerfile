@@ -14,6 +14,9 @@ RUN curl https://s3.amazonaws.com/rstudio-server/current.ver | \
       && rm rstudio.deb \
       && apt-get clean
 
+# install ssh, required for Rmpi (parallelisation)
+apt-get -y install ssh
+
 # to make top work from the terminal
 ENV TERM dumb
 
