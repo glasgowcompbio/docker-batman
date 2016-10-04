@@ -15,10 +15,11 @@ RUN curl https://s3.amazonaws.com/rstudio-server/current.ver | \
       && apt-get clean
 
 # install ssh, required for Rmpi (parallelisation)
-apt-get -y install ssh
+RUN apt-get -y install ssh
 
-# to make top work from the terminal
-ENV TERM dumb
+# better top
+RUN apt-get -y install htop
+ENV TERM xterm
 
 # install batman & other R packages here
 ADD installBatman.R /home/root/installBatman.R
