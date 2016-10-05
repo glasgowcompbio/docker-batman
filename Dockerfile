@@ -2,9 +2,11 @@
 FROM ubuntu:14.04
 MAINTAINER Joe Wandy <joe.wandy@glasgow.ac.uk>
 
+ENV TERM xterm
+
 RUN apt-get -y update \
       && apt-get -y upgrade \
-      && apt-get -y install curl wget r-base libapparmor1 libcurl4-openssl-dev libxml2-dev libssl-dev gdebi-core \
+      && apt-get -y install curl wget r-base libapparmor1 libcurl4-openssl-dev libxml2-dev libssl-dev gdebi-core ssh htop \
       && apt-cache search r-cran | cut -f 1 -d ' ' | xargs apt-get -y install
 
 # grab latest rstudio-server
@@ -13,13 +15,6 @@ RUN curl https://s3.amazonaws.com/rstudio-server/current.ver | \
       && gdebi -n rstudio.deb \
       && rm rstudio.deb \
       && apt-get clean
-
-# install ssh, required for Rmpi (parallelisation)
-RUN apt-get -y install ssh
-
-# better top
-RUN apt-get -y install htop
-ENV TERM xterm
 
 # install batman & other R packages here
 ADD installBatman.R /home/root/installBatman.R
