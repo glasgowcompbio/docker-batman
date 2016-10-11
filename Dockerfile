@@ -6,7 +6,7 @@ ENV TERM xterm
 
 RUN apt-get -y update \
       && apt-get -y upgrade \
-      && apt-get -y install curl wget r-base libapparmor1 libcurl4-openssl-dev libxml2-dev libssl-dev gdebi-core ssh htop \
+      && apt-get -y install curl wget r-base libapparmor1 libcurl4-openssl-dev libxml2-dev libssl-dev gdebi-core ssh htop r-cran-rmpi \
       && apt-cache search r-cran | cut -f 1 -d ' ' | xargs apt-get -y install
 
 # grab latest rstudio-server
