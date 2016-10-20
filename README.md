@@ -11,15 +11,16 @@ To build this image:
 
 To install and run the image, use the following command from the shell:
 
-    $ docker run -v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR --name batman -dp 8787:8787 joewandy/docker-batman
+    $ docker run -v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR --name batman -d -p 8787:8787 -p 8888:8888 joewandy/docker-batman
 
 Explanation of the command above:
-- `-v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR` maps the host folder /Users/joewandy/Dropbox/Analysis/NMR to /home/rstudio/NMR in the container
-- `--name batman` gives the running container the name 'batman'
-- `-dp 8787:8787` maps port 8787 in the host to port 8787 in the container
-- `joewandy/docker-batman` specifies the name of the docker image to pull from dockerhub
+- `-v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR` maps the host folder /Users/joewandy/Dropbox/Analysis/NMR to /home/rstudio/NMR in the container.
+- `--name batman` gives the running container the name 'batman'.
+- `-d` runs the container in a detached mode.
+- `-dp 8787:8787` maps port 8787 in the host to port 8787 in the container, similarly `-dp 8787:8787` maps port 8888.
+- `joewandy/docker-batman` specifies the name of the docker image to pull from dockerhub.
 
-To attach to the shell of a running BATMAN container
+To attach to the shell in the running container
 
     $ docker exec -it batman /bin/bash
 

@@ -34,10 +34,6 @@ RUN useradd -m -d /home/rstudio rstudio \
 ADD example /home/rstudio/example
 RUN chown -R rstudio:rstudio /home/rstudio/example
 
-# run rstudio-server at port 8787
-EXPOSE 8787
-CMD ["/usr/lib/rstudio-server/bin/rserver", "--server-daemonize=0", "--server-app-armor-enabled=0"]
-
 ############### install minimal Anaconda Python ###############
 
 RUN apt-get update --fix-missing && apt-get install -y wget bzip2 ca-certificates \
@@ -67,5 +63,11 @@ ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/
 RUN chmod +x /usr/bin/tini
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-EXPOSE 8888
-CMD ["jupyter", "notebook", "--port=8888", "--no-browser", "--ip=0.0.0.0"]
+# expose port for rstudio-server on port 8787, jupyter notebook on port 8888
+EXPOSE 8787 8888
+
+# runs rstudio-server and jupyter notebook in the background
+ADD run.sh /home/root/run.sh
+RUN chmod a+x /home/root/run.sh
+WORKDIR /home/rstudio
+CMD ["/home/root/run.sh"]
