@@ -1,12 +1,20 @@
-# Dockerfile to install rstudio-server and BATMAN library for NMR spectral processing
-FROM ubuntu:14.04
+# Dockerfile to install rstudio-server + BATMAN + scientific python libraries for NMR spectral processing
+# See:
+# - https://github.com/wiseio/datascience-docker/tree/master/datascience-base
+# - https://github.com/ContinuumIO/docker-images/blob/master/miniconda/Dockerfile
+# - https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image
+
+FROM ubuntu:16.04
 MAINTAINER Joe Wandy <joe.wandy@glasgow.ac.uk>
 
 ENV TERM xterm
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+
+############### install R-studio ###############
 
 RUN apt-get -y update \
-      && apt-get -y upgrade \
-      && apt-get -y install curl wget r-base libapparmor1 libcurl4-openssl-dev libxml2-dev libssl-dev gdebi-core ssh htop libopenmpi-dev \
+      && apt-get -y install curl wget r-base libapparmor1 libcurl4-openssl-dev libxml2-dev libssl-dev gdebi-core \
+      && apt-get -y install ssh htop libopenmpi-dev \
       && apt-cache search r-cran | cut -f 1 -d ' ' | xargs apt-get -y install
 
 # grab latest rstudio-server
@@ -26,8 +34,38 @@ RUN useradd -m -d /home/rstudio rstudio \
 ADD example /home/rstudio/example
 RUN chown -R rstudio:rstudio /home/rstudio/example
 
-# expose port 8787 to the host for rstudio-server
+# run rstudio-server at port 8787
 EXPOSE 8787
-
-# start rstudio-server in the background
 CMD ["/usr/lib/rstudio-server/bin/rserver", "--server-daemonize=0", "--server-app-armor-enabled=0"]
+
+############### install minimal Anaconda Python ###############
+
+RUN apt-get update --fix-missing && apt-get install -y wget bzip2 ca-certificates \
+    libglib2.0-0 libxext6 libsm6 libxrender1 \
+    git mercurial subversion
+
+RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
+    wget --quiet https://repo.continuum.io/miniconda/Miniconda2-4.1.11-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh
+
+RUN apt-get install -y curl grep sed dpkg && \
+    TINI_VERSION=`curl https://github.com/krallin/tini/releases/latest | grep -o "/v.*\"" | sed 's:^..\(.*\).$:\1:'` && \
+    curl -L "https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini_${TINI_VERSION}.deb" > tini.deb && \
+    dpkg -i tini.deb && \
+    rm tini.deb && \
+    apt-get clean
+
+ENV PATH /opt/conda/bin:$PATH
+ADD requirements.txt /home/root/requirements.txt
+RUN conda install --yes --file /home/root/requirements.txt
+
+# Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes.
+# see http://jupyter-notebook.readthedocs.io/en/latest/public_server.html
+ENV TINI_VERSION v0.6.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
+RUN chmod +x /usr/bin/tini
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+EXPOSE 8888
+CMD ["jupyter", "notebook", "--port=8888", "--no-browser", "--ip=0.0.0.0"]
