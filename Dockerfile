@@ -53,17 +53,19 @@ RUN apt-get install -y curl grep sed dpkg && \
     apt-get clean
 
 ENV PATH /opt/conda/bin:$PATH
-ADD requirements.txt /home/root/requirements.txt
-RUN conda install --yes --file /home/root/requirements.txt
+ADD requirements_conda.txt /home/root/requirements_conda.txt
+ADD requirements_pip.txt /home/root/requirements_pip.txt
+RUN conda install --yes --file /home/root/requirements_conda.txt
+RUN pip install -r /home/root/requirements_pip.txt
 
-# Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes.
+# Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes in jypyter notebook.
 # see http://jupyter-notebook.readthedocs.io/en/latest/public_server.html
 ENV TINI_VERSION v0.6.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
 RUN chmod +x /usr/bin/tini
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# expose port for rstudio-server on port 8787, jupyter notebook on port 8888
+# expose port 8787 for rstudio-server, 8888 for jupyter notebook
 EXPOSE 8787 8888
 
 # runs rstudio-server and jupyter notebook in the background
