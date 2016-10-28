@@ -4,6 +4,10 @@
 # - https://github.com/ContinuumIO/docker-images/blob/master/miniconda/Dockerfile
 # - https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image
 
+# TODO:
+# - use latest nmrglue library
+# - mount the code and data volumes on the host
+
 FROM ubuntu:16.04
 MAINTAINER Joe Wandy <joe.wandy@glasgow.ac.uk>
 
