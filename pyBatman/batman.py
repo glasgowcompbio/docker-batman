@@ -153,9 +153,9 @@ class PyBatman(object):
                              .set('nItBurnin', 9000)              \
                              .set('nItPostBurnin', 1000)          \
                              .set('thinning', 5)                  \
-                             .set('tauMean', -0.05)               \
+                             .set('tauMean', -0.01)               \
                              .set('tauPrec', 2)                   \
-                             .set('rdelta', 0.002)                \
+                             .set('rdelta', 0.01)                 \
                              .set('csFlag', 0)
 
         # special parameters for TSP since it's so different from the rest
@@ -387,6 +387,14 @@ class PyBatman(object):
         udic = ng.bruker.guess_udic(dic, data)
         uc = ng.fileiobase.uc_from_udic(udic, 0)
 
+        correct_baseline = True
+        if correct_baseline:
+            if self.verbose:
+                print 'With baseline correction'
+            data = ng.proc_bl.baseline_corrector(data, wd=40)
+        else:
+            if self.verbose:
+                print 'No baseline correction'
         x = []
         y = []
         for ppm in uc.ppm_scale():
