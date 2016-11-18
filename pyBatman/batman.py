@@ -1,6 +1,7 @@
 import datetime
 import matplotlib
 import numpy as np
+from scipy import signal
 import nmrglue as ng
 import pandas as pd
 import os
@@ -24,25 +25,22 @@ from plotly import tools
 import plotly.plotly as py
 import plotly.graph_objs as go
 import plotly
+import scipy.interpolate as interpolate
 
 import readline
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri
 
-READ_SPECTRA_NMRGLUE = 1
-READ_SPECTRA_BATMAN = 2
-
 class PyBatman(object):
 
-    def __init__(self, input_dirs, pattern, working_dir, db, verbose=False,
-        read_spectra_using=READ_SPECTRA_NMRGLUE):
+    def __init__(self, input_dirs, background_dirs, pattern, working_dir, db, verbose=False):
 
         self.db = db
         self.input_dirs = input_dirs
+        self.background_dirs = background_dirs
         self.pattern = pattern
         self.working_dir = working_dir
-        self.read_spectra_using = read_spectra_using
         self.verbose = verbose
 
         importr('batman')
@@ -53,14 +51,6 @@ class PyBatman(object):
         for input_dir in self.input_dirs:
             last = os.path.basename(os.path.normpath(input_dir))
             self.labels.append(last)
-
-        # extract spectra name
-        self.matching = self._get_matching_paths(self.input_dirs,
-                            self.pattern)
-        if self.verbose:
-            print "Found spectra matching pattern '%s':" % self.pattern
-            for s in self.matching:
-                print '-', s
 
         # create working directory
         self._mkdir_p(self.working_dir)
@@ -76,41 +66,53 @@ class PyBatman(object):
             print '- batman_input =', self.batman_input
             print '- batman_output =', self.batman_output
 
-        # extract spectra
-        batman_data = os.path.join(batman_dir, 'data')
-        temp_data = self._prepare_data(self.matching, batman_data)
-        if self.read_spectra_using == READ_SPECTRA_NMRGLUE:
-            self.spectra = self._load_data_with_nmrglue(temp_data)
-        elif self.read_spectra_using == READ_SPECTRA_BATMAN:
-            self.spectra = self._load_data_with_batman(batman_data)
-        else:
-            raise ValueError('Invalid value for options.read_spectra_using')
+        # extract spectra and background
+        self.spectra = self._load_data(self.input_dirs, self.pattern)
+        self.background = self._load_data(self.background_dirs, self.pattern)
 
-        # write spectra
-        columns = ['ppm']
-        columns.extend(self.labels)
-        self.df = pd.DataFrame(self.spectra, columns=columns)
+        # combine spectra to have the same ppm scales
+        self.spectra_data, self.mean_bg = self._combine_spectra(self.spectra, self.background)
         self.spectra_file = os.path.join(self.batman_input, 'NMRdata_temp.txt')
-        self.df.to_csv(self.spectra_file, index=False, sep='\t')
-        if self.verbose:
-            print 'Spectra written to', self.spectra_file
+        self._write_batman_input(self.spectra_file, self.spectra_data, self.labels)
 
-    def plot_spectra(self):
-        plt.figure()
-        x = self.spectra[:, 0]
-        for n in range(1, self.spectra.shape[1]):
-            y = self.spectra[:, n]
-            plt.plot(x, y)
-        plt.xlim([-0.1, 5])
-        plt.gca().invert_xaxis()
-        plt.xlabel('ppm')
-        plt.ylabel('intensity')
+    def plot_spectra(self, name):
+
+        meta_ranges = self.db.metabolites[name].ppm_range
+
+        for lower, upper in meta_ranges:
+
+            ppm = self.spectra_data[:, 0]
+            idx = (ppm > lower) & (ppm < upper)
+            n_row, n_col = self.spectra_data.shape
+
+            plt.figure()
+            x = ppm[idx]
+            for i in range(1, n_col):
+                intensity = self.spectra_data[:, i]
+                y = intensity[idx]
+                plt.plot(x, y)
+            plt.gca().invert_xaxis()
+            plt.xlabel('ppm')
+            plt.ylabel('intensity')
+            plt.title('%s at (%.4f-%.4f)' % (name, lower, upper))
+            plt.show()
 
     def plotly_spectra(self):
         data = []
-        x = self.spectra[:, 0]
-        for n in range(1, self.spectra.shape[1]):
-            y = self.spectra[:, n]
+        for spec in self.spectra:
+            trace = go.Scatter(
+                x = spec.ppm,
+                y = spec.intensity
+            )
+            data.append(trace)
+        plotly.offline.iplot(data)
+
+    def plotly_data(self):
+        data = []
+        x = self.spectra_data[:, 0]
+        n_row, n_col = self.spectra_data.shape
+        for i in range(1, n_col):
+            y = self.spectra_data[:, i]
             trace = go.Scatter(
                 x = x,
                 y = y
@@ -119,7 +121,6 @@ class PyBatman(object):
         plotly.offline.iplot(data)
 
     def get_default_params(self, names):
-
         # check if it's TSP
         is_tsp = False
         if 'TSP' in names:
@@ -140,22 +141,19 @@ class PyBatman(object):
         ranges_str = ' '.join(ranges)
 
         # set no. of spectra and no. of processors to use
-        n_row, n_col = self.df.shape
-        spec_no = n_col-1 # first column is the ppm
+        spec_no = len(self.spectra)
         para_proc = multiprocessing.cpu_count()
-        random_seed = randint(0, 1e6)
 
         # set common parameters
         options = options.set('ppmRange', ranges_str)             \
                              .set('specNo', '1-%d' % spec_no)     \
                              .set('paraProc', para_proc)          \
-                             .set('randSeed', random_seed)        \
-                             .set('nItBurnin', 9000)              \
+                             .set('nItBurnin', 19000)             \
                              .set('nItPostBurnin', 1000)          \
                              .set('thinning', 5)                  \
                              .set('tauMean', -0.01)               \
                              .set('tauPrec', 2)                   \
-                             .set('rdelta', 0.01)                 \
+                             .set('rdelta', 0.005)                \
                              .set('csFlag', 0)
 
         # special parameters for TSP since it's so different from the rest
@@ -166,21 +164,25 @@ class PyBatman(object):
                                  .set('nuMVar', 0)                \
                                  .set('nuMVarProp', 0.1)
         else:
-            default = options.set('muMean', 0)                    \
-                                 .set('muVar', 0.01)              \
-                                 .set('muVar_prop', 0.0002)       \
-                                 .set('nuMVar', 0.0025)           \
+            default = options.set('muMean', 0)                     \
+                                 .set('muVar', 0.01)               \
+                                 .set('muVar_prop', 0.0002)        \
+                                 .set('nuMVar', 0.0025)            \
                                  .set('nuMVarProp', 0.01)
+
 
         return default
 
-    def run(self, options, parallel=False, seed=None, plot=True):
-
+    def run(self, options, parallel=False, seed=None, plot=True, verbose=False):
+        self.verbose = verbose
         if not parallel:
             options = options.set('paraProc', 1)
 
         if seed is not None:
-            options = options.set('randSeed', seed)
+            random_seed = seed
+        else:
+            random_seed = randint(0, 1e6)
+        options = options.set('randSeed', random_seed)
 
         # write out batman input files
         selected = options.selected
@@ -191,6 +193,7 @@ class PyBatman(object):
 
         # actually runs batman here using rpy2
         batman_r = robjects.r['batman']
+        sink_r = robjects.r['sink']
         if self.verbose:
 
             display(metabolites_list_df)
@@ -203,19 +206,129 @@ class PyBatman(object):
             for line in options_lines:
                 print line
             print
+
+            sink_r()
             bm = batman_r(runBATMANDir=self.temp_dir, txtFile=self.spectra_file, figBatmanFit=False)
 
         else:
 
-            sink_r = robjects.r['sink']
             sink_r('/dev/null')
             bm = batman_r(runBATMANDir=self.temp_dir, txtFile=self.spectra_file, figBatmanFit=False)
             sink_r()
 
         if plot:
             self._plot_batman_r(bm)
-        output = BatmanOutput(bm)
+        output = PyBatmanOutput(bm, options)
         return output
+
+    def baseline_correct(self, options):
+
+        print 'Doing baseline correction'
+        ppm = self.spectra_data[:, 0]
+        n_row, n_col = self.spectra_data.shape
+
+        for i in range(1, n_col):
+
+            intensity = self.spectra_data[:, i]
+            selected = options.selected
+            label = self.labels[i-1]
+
+            for metabolite in selected:
+                ranges = metabolite.ppm_range
+                if len(ranges) > 0:
+                    for lower, upper in ranges:
+                        idx = (ppm > lower) & (ppm < upper)
+                        selected_intensity = intensity[idx]
+                        selected_ppm = ppm[idx]
+
+                        # divide the array into halves and find the mininum indices from each portion
+                        left, right = np.array_split(selected_intensity, 2)
+                        to_find = [left.min(), right.min()]
+                        to_find_idx = np.in1d(selected_intensity, to_find)
+                        min_pos = np.where(to_find_idx)[0]
+
+                        # node_list will be the indices of ...
+                        first = 0
+                        last = len(selected_intensity)-1
+                        # node_list = [first, last]
+                        node_list = [first]         # the first element
+                        node_list.extend(min_pos)   # the min elements from left and right
+                        node_list.append(last)      # the last element
+                        corrected_intensity = ng.proc_bl.base(selected_intensity, node_list) # piece-wise baseline correction
+
+                        f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+                        title = '(%.4f-%.4f)' % (lower, upper)
+                        ax1.plot(selected_ppm, selected_intensity, 'b', label='Spectra')
+                        ax1.plot(selected_ppm, corrected_intensity, 'g', label='Baseline Corrected')
+                        ax1.set_xlabel('ppm')
+                        ax1.set_ylabel('intensity')
+                        ax1.legend(loc='best')
+                        ax1.invert_xaxis()
+                        ax1.set_title(title)
+
+                        intensity[idx] = corrected_intensity
+                        idx = (ppm > lower-0.05) & (ppm < upper+0.05)
+                        title = 'Corrected (%.4f-%.4f)' % (lower-0.05, upper+0.05)
+                        ax2.plot(ppm[idx], intensity[idx], 'b')
+                        ax2.set_xlabel('ppm')
+                        ax2.invert_xaxis()
+                        ax2.set_title(title)
+
+                        plt.suptitle('%s %s' % (label, metabolite.name), fontsize=16, y=1.08)
+                        plt.tight_layout()
+                        plt.show()
+                        assert np.array_equal(self.spectra_data[:, i], intensity)
+
+        self._write_batman_input(self.spectra_file, self.spectra_data, self.labels)
+
+    def background_correct(self, options):
+
+        print 'Doing background correction'
+        ppm = self.spectra_data[:, 0]
+        background = self.mean_bg
+        n_row, n_col = self.spectra_data.shape
+
+        for i in range(1, n_col):
+
+            intensity = self.spectra_data[:, i]
+            selected = options.selected
+            label = self.labels[i-1]
+
+            for metabolite in selected:
+                ranges = metabolite.ppm_range
+                if len(ranges) > 0:
+                    for lower, upper in ranges:
+                        idx = (ppm > lower) & (ppm < upper)
+                        selected_intensity = intensity[idx]
+                        selected_ppm = ppm[idx]
+                        selected_background = background[idx]
+                        corrected_intensity = selected_intensity - selected_background
+
+                        f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+                        title = '(%.4f-%.4f)' % (lower, upper)
+                        ax1.plot(selected_ppm, selected_intensity, 'b', label='Spectra')
+                        ax1.plot(selected_ppm, selected_background, 'k--', label='Background')
+                        ax1.plot(selected_ppm, corrected_intensity, 'g', label='Spectra - Background')
+                        ax1.set_xlabel('ppm')
+                        ax1.set_ylabel('intensity')
+                        ax1.legend(loc='best')
+                        ax1.invert_xaxis()
+                        ax1.set_title(title)
+
+                        intensity[idx] = corrected_intensity
+                        idx = (ppm > lower-0.05) & (ppm < upper+0.05)
+                        title = 'Corrected (%.4f-%.4f)' % (lower-0.05, upper+0.05)
+                        ax2.plot(ppm[idx], intensity[idx], 'b')
+                        ax2.set_xlabel('ppm')
+                        ax2.invert_xaxis()
+                        ax2.set_title(title)
+
+                        plt.suptitle('%s %s' % (label, metabolite.name), fontsize=16, y=1.08)
+                        plt.tight_layout()
+                        plt.show()
+                        assert np.array_equal(self.spectra_data[:, i], intensity)
+
+        self._write_batman_input(self.spectra_file, self.spectra_data, self.labels)
 
     def cleanup(self):
         shutil.rmtree(self.temp_dir)
@@ -223,7 +336,6 @@ class PyBatman(object):
             print 'Deleted', self.temp_dir
 
     def _select_metabolites(self, names):
-
         metabolite_names = [m.name for m in self.db.metabolites.values()]
 
         # activate only the metabolites we need
@@ -235,8 +347,15 @@ class PyBatman(object):
         metabolites = self.db.get_active()
         return metabolites
 
-    def _write_metabolites_list(self, metabolites, file_name):
+    def _write_batman_input(self, spectra_file, spectra_data, labels):
+        columns = ['ppm']
+        columns.extend(labels)
+        df = pd.DataFrame(spectra_data, columns=columns)
+        df.to_csv(self.spectra_file, index=False, sep='\t')
+        if self.verbose:
+            print 'Spectra written to', spectra_file
 
+    def _write_metabolites_list(self, metabolites, file_name):
         columns = ['Metabolite']
         data = [m.name for m in metabolites]
         df = pd.DataFrame(data, columns=columns)
@@ -248,9 +367,8 @@ class PyBatman(object):
 
         return df
 
+    # create multi_data_user.csv
     def _write_multiplet_data(self, metabolites, file_name):
-
-        # create multi_data_user.csv
         columns = ['Metabolite', 'pos_in_ppm', 'couple_code', 'J_constant',
                    'relative_intensity', 'overwrite_pos', 'overwrite_truncation',
                    'Include_multiplet']
@@ -272,9 +390,8 @@ class PyBatman(object):
 
         return df
 
+    # create chemShiftPerSpec.csv
     def _write_chem_shift(self, metabolites, file_name):
-
-        # create chemShiftPerSpec.csv
         columns = ['multiplets', 'pos_in_ppm']
         columns.extend(self.labels)
         data = []
@@ -293,9 +410,8 @@ class PyBatman(object):
 
         return df
 
+    # create batmanOptions.txt
     def _write_batman_options(self, options, file_name):
-
-        # create batmanOptions.txt
         out_file = os.path.join(self.batman_input, file_name)
         if self.verbose:
             print 'batman options = %s' % out_file
@@ -314,25 +430,27 @@ class PyBatman(object):
         return option_lines
 
     def _plot_batman_r(self, bm):
-
         plot_batman_fit_r = robjects.r['plotBatmanFit']
         plot_batman_fit_stack_r = robjects.r['plotBatmanFitStack']
         plot_rel_con_r = robjects.r['plotRelCon']
         plot_meta_fit_r = robjects.r['plotMetaFit']
 
+        sink_r = robjects.r['sink']
         if self.verbose:
+            sink_r()
             plot_batman_fit_r(bm, showPlot=False)
             plot_batman_fit_stack_r(bm, offset=0.8, placeLegend='topleft', yto=5)
             plot_rel_con_r(bm, showPlot=False)
             plot_meta_fit_r(bm, showPlot=False)
         else:
-            sink_r = robjects.r['sink']
             sink_r('/dev/null')
             plot_batman_fit_r(bm, showPlot=False)
             plot_batman_fit_stack_r(bm, offset=0.8, placeLegend='topleft', yto=5)
             plot_rel_con_r(bm, showPlot=False)
             plot_meta_fit_r(bm, showPlot=False)
             sink_r()
+
+        # TODO: make traceplots etc
 
     def _get_matching_paths(self, input_dirs, pattern):
 
@@ -378,7 +496,6 @@ class PyBatman(object):
         return out_dirs
 
     def _load_single_spectra(self, spectra_dir):
-
         p_data = os.path.join(spectra_dir, 'pdata/1')
         if self.verbose:
             print 'Processing', p_data
@@ -387,14 +504,6 @@ class PyBatman(object):
         udic = ng.bruker.guess_udic(dic, data)
         uc = ng.fileiobase.uc_from_udic(udic, 0)
 
-        correct_baseline = True
-        if correct_baseline:
-            if self.verbose:
-                print 'With baseline correction'
-            data = ng.proc_bl.baseline_corrector(data, wd=40)
-        else:
-            if self.verbose:
-                print 'No baseline correction'
         x = []
         y = []
         for ppm in uc.ppm_scale():
@@ -403,27 +512,57 @@ class PyBatman(object):
         x = np.array(x)
         y = np.array(y)
 
-        return x, y
+        return Spectra(x, y)
 
-    def _load_data_with_nmrglue(self, input_dirs):
-        spectra = []
-        for input_dir in input_dirs:
-            x, y = self._load_single_spectra(input_dir)
-            spectra.append(y)
-        combined = [x]
-        combined.extend(spectra)
+    def _load_data(self, input_dirs, pattern):
+        matching = self._get_matching_paths(input_dirs, pattern)
+        spectra_list = [self._load_single_spectra(input_dir) for input_dir in matching]
+        return spectra_list
+
+    def _resample(self, xs, ys, ppm):
+        new_ys = []
+        for x, y in zip(xs, ys):
+            new_y = interpolate.interp1d(x, y)(ppm)
+            new_ys.append(new_y)
+        return new_ys
+
+    def _get_ppms(self, spectra_list):
+        xs = [spectra.ppm for spectra in spectra_list]
+        minx = min([x[0] for x in xs])
+        maxx = max([x[-1] for x in xs])
+        ppm = np.linspace(minx, maxx, num=len(xs[0]))
+        return ppm
+
+    def _combine_spectra(self, spectra_list, background_list):
+
+        ppm = self._get_ppms(spectra_list + background_list)
+
+        # process the sample spectra first
+        xs = [spectra.ppm for spectra in spectra_list]
+        ys = [spectra.intensity for spectra in spectra_list]
+        new_ys = self._resample(xs, ys, ppm)
+
+        combined = [ppm]
+        combined.extend(new_ys)
         combined = np.array(combined).transpose()
         if self.verbose:
             print 'Loaded', combined.shape
-        return combined
 
-    def _load_data_with_batman(self, input_dir):
-        read_bruker = robjects.r['readBruker']
-        spectra = read_bruker(input_dir)
-        combined = np.array(spectra)
-        if self.verbose:
-            print 'Loaded', combined.shape
-        return combined
+        # process the background too if available
+        if len(background_list) > 0:
+
+            xs = [spectra.ppm for spectra in background_list]
+            ys = [spectra.intensity for spectra in background_list]
+            new_ys = self._resample(xs, ys, ppm)
+
+            # get the average of all the background spectra
+            all_bg = np.array(new_ys)
+            mean_bg = all_bg.mean(axis=0)
+
+        else:
+            mean_bg = None
+
+        return combined, mean_bg
 
 class PyBatmanOptions(object):
 
@@ -441,7 +580,7 @@ class PyBatmanOptions(object):
             self.params['paraProc']      = None         # set inside PyBatman.get_default_params(), e.g. 4
             self.params['negThresh']     = -0.5         # probably don't change
             self.params['scaleFac']      = 900000       # probably don't change
-            self.params['downSamp']      = 3            # probably don't change
+            self.params['downSamp']      = 1            # probably don't change
             self.params['hiresFlag']     = 1            # probably don't change
             self.params['randSeed']      = None         # set inside PyBatman.get_default_params(), e.g. 25
             self.params['nItBurnin']     = None         # set inside PyBatman.get_default_params(), e.g. 9000
@@ -479,6 +618,12 @@ class PyBatmanOptions(object):
         copy = self.params.copy()
         copy[key] = val
         return PyBatmanOptions(self.selected, params=copy)
+
+class Spectra(object):
+
+    def __init__(self, ppm, intensity):
+        self.ppm = ppm
+        self.intensity = intensity
 
 class Database(object):
 
@@ -535,10 +680,57 @@ class Multiplet(object):
                     self.couple_code, self.j_constant, self.rel_intensity)
         return output
 
-class BatmanOutput(object):
+class PyBatmanOutput(object):
 
-    def __init__(self, bm):
+    def __init__(self, bm, options):
 
+        self.output_dir = bm[bm.names.index('outputDir')][0]
         self.bm = bm
-        beta_r = bm[bm.names.index('beta')]
-        self.beta_df = pandas2ri.ri2py(beta_r)
+        self.options = options
+
+        beta = bm[bm.names.index('beta')]
+        # beta_sam = bm[bm.names.index('betaSam')]
+        specfit = bm[bm.names.index('sFit')]
+
+        self.beta_df = pandas2ri.ri2py(beta)
+        # self.beta_sam_df = pandas2ri.ri2py(beta_sam).transpose()
+
+        self.specfit_df = pandas2ri.ri2py(specfit)
+        self.ppm = self.specfit_df['ppm'].values
+        self.original_spectrum = self.specfit_df['Original.spectrum'].values
+        self.metabolites_fit = self.specfit_df['Metabolites.fit'].values
+        self.wavelet_fit = self.specfit_df['Wavelet.fit'].values
+        self.overall_fit = self.specfit_df['Overall.fit'].values
+
+    def plot_fit(self):
+
+        for metabolite in self.options.selected:
+
+            for lower, upper in metabolite.ppm_range:
+
+                idx = (self.ppm > lower) & (self.ppm < upper)
+                ppm = self.ppm[idx]
+                original_spectrum = self.original_spectrum[idx]
+                metabolites_fit = self.metabolites_fit[idx]
+                wavelet_fit = self.wavelet_fit[idx]
+
+                plt.figure()
+                plt.plot(ppm, original_spectrum, color='blue', label='Original Spectra')
+                plt.plot(ppm, metabolites_fit, color='green', label='Metabolites Fit')
+                plt.plot(ppm, wavelet_fit, color='red', label='Wavelet Fit')
+                # plt.plot(self.ppm, self.overall_fit, '--', color='black', label='Combined Fit')
+                plt.legend(loc='best')
+                plt.gca().invert_xaxis()
+                title = 'Fit Results -- %s (%.4f-%.4f)' % (metabolite.name, lower, upper)
+                plt.title('%s' % title)
+                plt.show()
+
+    # def plot_beta_sam(self):
+    #     self.beta_sam_df.boxplot()
+
+    def rmse(self):
+        error = np.sqrt((self.error_vect() ** 2).mean())
+        return error
+
+    def error_vect(self):
+        return self.original_spectrum - self.metabolites_fit
