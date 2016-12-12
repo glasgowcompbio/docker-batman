@@ -11,10 +11,11 @@ To build this image:
 
 To install and run the image, use the following command from the shell:
 
-    $ docker run -v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR --name batman -d -p 8787:8787 -p 8888:8888 joewandy/docker-batman
+    $ docker run -v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR -v /Users/joewandy/git/pyBatman:/home/rstudio/NMR/scripts --name batman -d -p 8787:8787 -p 8888:8888 joewandy/docker-batman
 
 Explanation of the command above:
-- `-v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR` maps the host folder /Users/joewandy/Dropbox/Analysis/NMR to /home/rstudio/NMR in the container.
+- `-v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR` maps the host folder /Users/joewandy/Dropbox/Analysis/NMR to /home/rstudio/NMR in the container. This contains the data folder.
+- `/Users/joewandy/git/pyBatman:/home/rstudio/NMR/scripts` similarly maps the script folder from the host to the container. 
 - `--name batman` gives the running container the name 'batman'.
 - `-d` runs the container in a detached mode.
 - `-dp 8787:8787` maps port 8787 in the host to port 8787 in the container, similarly `-dp 8787:8787` maps port 8888.
