@@ -62,6 +62,9 @@ ADD requirements_pip.txt /home/root/requirements_pip.txt
 RUN conda install --yes --file /home/root/requirements_conda.txt
 RUN pip install -r /home/root/requirements_pip.txt
 
+# Get latest nmrglue library
+RUN git clone https://github.com/jjhelmus/nmrglue.git /home/root/nmrglue && cd /home/root/nmrglue && python setup.py install
+
 # Add Tini. Tini operates as a process subreaper for jupyter. This prevents kernel crashes in jypyter notebook.
 # see http://jupyter-notebook.readthedocs.io/en/latest/public_server.html
 ENV TINI_VERSION v0.6.0
