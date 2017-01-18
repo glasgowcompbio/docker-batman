@@ -70,10 +70,9 @@ RUN git clone https://github.com/jjhelmus/nmrglue.git /home/root/nmrglue && cd /
 ENV TINI_VERSION v0.6.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/bin/tini
 RUN chmod +x /usr/bin/tini
-ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# expose port 8787 for rstudio-server, 8888 for jupyter notebook
-EXPOSE 8787 8888
+# expose port 8787 for rstudio-server, 9999 for jupyter notebook
+EXPOSE 8787 9999
 
 # runs rstudio-server and jupyter notebook in the background
 ADD run.sh /home/root/run.sh
