@@ -11,11 +11,10 @@ To build this image:
 
 To install and run the image, use the following command from the shell:
 
-    $ docker run -v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR -v /Users/joewandy/git/pyBatman:/home/rstudio/NMR/scripts --name batman -d -p 8787:8787 -p 9999:9999 joewandy/docker-batman
+    $ docker run -v /Users/joewandy/Dropbox/Meta_clustering/NMR/data/test_spectra/:/home/rstudio/NMR/spectra -v /Users/joewandy/Dropbox/Meta_clustering/NMR/data/background/:/home/rstudio/NMR/background -v /Users/joewandy/git/pyBatman:/home/rstudio/NMR/codes --name batman -d -p 8787:8787 -p 9999:9999 joewandy/docker-batman
 
 Explanation of the command above:
-- `-v /Users/joewandy/Dropbox/Analysis/NMR:/home/rstudio/NMR` maps the host folder /Users/joewandy/Dropbox/Analysis/NMR to /home/rstudio/NMR in the container. This contains the data folder.
-- `/Users/joewandy/git/pyBatman:/home/rstudio/NMR/scripts` similarly maps the script folder from the host to the container.
+- `-v xxxx:yyyy` maps the host folder xxxx to yyyy in the container. You should map the 'spectra', 'background' and 'codes' folders inside the container. These are where the pipeline will look for the Bruker spectra to process, the background signal to use for background correction and also the codes required by the pipeline.
 - `--name batman` gives the running container the name 'batman'.
 - `-d` runs the container in a detached mode.
 - `-dp 8787:8787` maps port 8787 in the host to port 8787 in the container, similarly `-dp 9999:9999` maps port 9999.
@@ -25,6 +24,6 @@ To attach to the shell in the running container
 
     $ docker exec -it batman /bin/bash
 
-And finally to access R-studio in the running container, go to `http://localhost:8787/` in the browser and log in using the username 'rstudio' and password 'rstudio'. To access Jupyter notebook in the container, go to `http://localhost:8888`.
+And finally to access R-studio in the running container, go to `http://localhost:8787/` in the browser and log in using the username 'rstudio' and password 'rstudio'. To access Jupyter notebook in the container, go to `http://localhost:9999`.
 
 [![](https://images.microbadger.com/badges/image/joewandy/docker-batman.svg)](https://microbadger.com/images/joewandy/docker-batman "Get your own image badge on microbadger.com")
