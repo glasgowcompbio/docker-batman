@@ -4,10 +4,6 @@
 # - https://github.com/ContinuumIO/docker-images/blob/master/miniconda/Dockerfile
 # - https://github.com/rocker-org/rocker/wiki/Using-the-RStudio-image
 
-# TODO:
-# - use latest nmrglue library
-# - mount the code and data volumes on the host
-
 FROM ubuntu:16.04
 MAINTAINER Joe Wandy <joe.wandy@glasgow.ac.uk>
 
@@ -32,11 +28,9 @@ RUN curl https://s3.amazonaws.com/rstudio-server/current.ver | \
 ADD installBatman.R /home/root/installBatman.R
 RUN /usr/bin/Rscript /home/root/installBatman.R
 
-# create rstudio user and copy the example folder into the container
+# create rstudio user
 RUN useradd -m -d /home/rstudio rstudio \
       && echo rstudio:rstudio | chpasswd
-ADD example /home/rstudio/example
-RUN chown -R rstudio:rstudio /home/rstudio/example
 
 ############### install minimal Anaconda Python ###############
 
@@ -74,8 +68,16 @@ RUN chmod +x /usr/bin/tini
 # expose port 8787 for rstudio-server, 9999 for jupyter notebook
 EXPOSE 8787 9999
 
-# runs rstudio-server and jupyter notebook in the background
-ADD run.sh /home/root/run.sh
-RUN chmod a+x /home/root/run.sh
+# The code, data and results are mapped here
+VOLUME /home/rstudio/NMR
+RUN git clone https://github.com/joewandy/pyBatman.git /home/rstudio/codes
+
+# copy the scripts that we need to run the analysis
+ADD run_analysis.sh /home/root/run_analysis.sh
+RUN chmod a+x /home/root/run_analysis.sh
 WORKDIR /home/rstudio
-CMD ["/home/root/run.sh"]
+CMD ["/home/root/run_analysis.sh"]
+
+# also copy the script to run Rstudio and Jupyter notebook in the background
+ADD run_servers.sh /home/root/run_servers.sh
+RUN chmod a+x /home/root/run_servers.sh

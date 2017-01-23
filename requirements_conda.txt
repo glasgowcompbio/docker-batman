@@ -1,16 +1,7 @@
 scipy
 numpy
-scikit-learn
 pandas
 matplotlib
 seaborn
 ipython-notebook
-psycopg2
-cython
-hdf5
-pytables
-ipywidgets
 plotly
-django
-flask
-bokeh
