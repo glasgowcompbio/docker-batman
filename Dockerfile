@@ -15,6 +15,7 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 RUN apt-get -y update \
       && apt-get -y install curl wget r-base libapparmor1 libcurl4-openssl-dev libxml2-dev libssl-dev gdebi-core \
       && apt-get -y install ssh htop libopenmpi-dev \
+      && apt-get -y install vim cowsay figlet \
       && apt-cache search r-cran | cut -f 1 -d ' ' | xargs apt-get -y install
 
 # grab latest rstudio-server
